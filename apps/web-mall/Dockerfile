@@ -1,35 +1,28 @@
-# Build stage
 FROM node:20-alpine AS builder
-
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-# 의존성 정의 파일 복사 (npm 사용)
-COPY package.json ./
-
-# 의존성 설치
-RUN npm install
-
-# 소스 코드 복사
+RUN npm install -g pnpm turbo
 COPY . .
+RUN turbo prune --scope=@mall/web-mall --docker
 
-# Next.js 빌드 (Standalone 모드 권장)
-ENV NEXT_OUTPUT_STANDALONE=true
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS installer
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN npm install -g pnpm
+RUN pnpm install
 
-ENV NODE_ENV=production
+COPY --from=builder /app/out/full/ .
+RUN npx turbo run build --filter=@mall/web-mall...
 
-# 빌드 결과물 복사 (Standalone 모드 사용 시)
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV production
+# Next.js standalone output assumes the root of the project
+COPY --from=installer /app/apps/web-mall/.next/standalone ./
+COPY --from=installer /app/apps/web-mall/.next/static ./apps/web-mall/.next/static
+COPY --from=installer /app/apps/web-mall/public ./apps/web-mall/public
 EXPOSE 13001
-
-ENV PORT=13001
-# Standalone 실행 시 server.js 파일이 생성됨
-CMD ["node", "server.js"]
+ENV PORT 13001
+CMD ["node", "apps/web-mall/server.js"]

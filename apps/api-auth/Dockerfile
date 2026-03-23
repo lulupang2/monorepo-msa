@@ -1,32 +1,25 @@
-# Build stage
 FROM node:20-alpine AS builder
-
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-# pnpm 설치
-RUN npm install -g pnpm
-
-# 의존성 정의 파일 복사
-COPY package.json ./
-
-# 의존성 설치
-RUN npm install
-
-# 소스 코드 복사
+RUN npm install -g pnpm turbo
 COPY . .
+RUN turbo prune --scope=api-auth --docker
 
-# 빌드 실행
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS installer
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN npm install -g pnpm
+RUN pnpm install
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/out/full/ .
+RUN npx turbo run build --filter=api-auth...
 
+FROM node:20-alpine AS runner
+WORKDIR /app
+COPY --from=installer /app/apps/api-auth/dist ./dist
+COPY --from=installer /app/apps/api-auth/package.json .
+COPY --from=installer /app/node_modules ./node_modules
 EXPOSE 3001
-
-CMD ["node", "dist/main"]
+CMD [ "node", "dist/main.js" ]

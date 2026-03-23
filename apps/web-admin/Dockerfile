@@ -1,26 +1,25 @@
-# Build stage
 FROM node:20-alpine AS builder
-
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-COPY package.json ./
-RUN npm install
-
+RUN npm install -g pnpm turbo
 COPY . .
+RUN turbo prune --scope=web-admin --docker
 
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS installer
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN npm install -g pnpm
+RUN pnpm install
 
-ENV NODE_ENV=production
+COPY --from=builder /app/out/full/ .
+RUN npx turbo run build --filter=web-admin...
 
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
-
+FROM node:20-alpine AS runner
+WORKDIR /app
+COPY --from=installer /app/apps/web-admin/build ./build
+COPY --from=installer /app/apps/web-admin/package.json .
+COPY --from=installer /app/node_modules ./node_modules
 EXPOSE 5173
-
 CMD ["node", "build"]
