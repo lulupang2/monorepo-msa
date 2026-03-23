@@ -8,7 +8,7 @@ RUN turbo prune --scope=@mall/gateway --docker
 FROM node:20-alpine AS installer
 WORKDIR /app
 # 단순 빌드를 위해 전체 복사 후 npm install
-COPY package.json package-lock.json* ./
+COPY package.json ./
 RUN npm install
 
 COPY . .

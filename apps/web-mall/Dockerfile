@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # 의존성 정의 파일 복사 (npm 사용)
-COPY package.json package-lock.json* ./
+COPY package.json ./
 
 # 의존성 설치
 RUN npm install
