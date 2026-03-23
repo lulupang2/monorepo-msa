@@ -3,22 +3,18 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# pnpm 설치 및 전역 환경 설정
-RUN npm install -g pnpm
-
-# 모노리포 환경이므로 루트와 패키지 의존성 고려가 필요할 수 있으나, 
-# 독립 실행형 빌드를 위해 우선 앱 디렉토리 기준 작성
-COPY package.json pnpm-lock.yaml* ./
+# 의존성 정의 파일 복사 (npm 사용)
+COPY package.json package-lock.json* ./
 
 # 의존성 설치
-RUN pnpm install
+RUN npm install
 
 # 소스 코드 복사
 COPY . .
 
 # Next.js 빌드 (Standalone 모드 권장)
 ENV NEXT_OUTPUT_STANDALONE=true
-RUN pnpm build
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine

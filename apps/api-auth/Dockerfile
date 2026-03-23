@@ -7,16 +7,16 @@ WORKDIR /app
 RUN npm install -g pnpm
 
 # 의존성 정의 파일 복사
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # 의존성 설치
-RUN pnpm install --frozen-lockfile
+RUN npm install
 
 # 소스 코드 복사
 COPY . .
 
 # 빌드 실행
-RUN pnpm build
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine

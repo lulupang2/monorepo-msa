@@ -7,14 +7,12 @@ RUN turbo prune --scope=@mall/gateway --docker
 
 FROM node:20-alpine AS installer
 WORKDIR /app
-RUN yarn global add pnpm turbo
-COPY .gitignore .gitignore
-COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install
+# 단순 빌드를 위해 전체 복사 후 npm install
+COPY package.json package-lock.json* ./
+RUN npm install
 
-COPY --from=builder /app/out/full/ .
-RUN turbo run build --filter=@mall/gateway...
+COPY . .
+RUN npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
