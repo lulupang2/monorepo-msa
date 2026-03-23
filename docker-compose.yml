@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # PostgreSQL (Core DB for Spring Boot & NextJS)
+  # ----------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: mall-postgres
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_USER: mall_user
+      POSTGRES_PASSWORD: mall_password
+      POSTGRES_DB: mall_db
+      TZ: Asia/Seoul
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # ----------------------------------------
+  # Redis (Cache & Session)
+  # ----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: mall-redis
+    ports:
+      - "16379:6379"
+    command: redis-server --requirepass root
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  # ----------------------------------------
+  # RabbitMQ (Message Broker - Optional)
+  # ----------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: mall-rabbitmq
+    ports:
+      - "15673:5672"   # AMQP port (10000번대 할당)
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: mall_user
+      RABBITMQ_DEFAULT_PASS: mall_password
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

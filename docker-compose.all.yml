@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # Infrastructure
+  # ----------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: mall-postgres
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_USER: mall_user
+      POSTGRES_PASSWORD: mall_password
+      POSTGRES_DB: mall_db
+      TZ: Asia/Seoul
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - mall-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mall-redis
+    ports:
+      - "16379:6379"
+    command: redis-server --requirepass root
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    networks:
+      - mall-network
+
+  # ----------------------------------------
+  # Backend Services
+  # ----------------------------------------
+  api-auth:
+    build:
+      context: ./apps/api-auth
+      dockerfile: Dockerfile
+    container_name: mall-api-auth
+    environment:
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=mall_user
+      - DB_PASSWORD=mall_password
+      - DB_NAME=mall_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=root
+    ports:
+      - "18000:3001"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mall-network
+
+  api-order:
+    build:
+      context: ./apps/api-order
+      dockerfile: Dockerfile
+    container_name: mall-api-order
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mall_db
+      - SPRING_DATASOURCE_USERNAME=mall_user
+      - SPRING_DATASOURCE_PASSWORD=mall_password
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=root
+    ports:
+      - "18080:18080"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mall-network
+
+  gateway:
+    build:
+      context: ./apps/gateway
+      dockerfile: Dockerfile
+    container_name: mall-gateway
+    environment:
+      - API_AUTH_URL=http://api-auth:3001
+      - API_ORDER_URL=http://api-order:18080
+    ports:
+      - "18001:8080"
+    depends_on:
+      - api-auth
+      - api-order
+    networks:
+      - mall-network
+
+  # ----------------------------------------
+  # Frontend Services
+  # ----------------------------------------
+  web-mall:
+    build:
+      context: ./apps/web-mall
+      dockerfile: Dockerfile
+    container_name: mall-web-app
+    environment:
+      - NEXT_PUBLIC_API_URL=http://gateway:8080
+    ports:
+      - "13001:13001"
+    depends_on:
+      - gateway
+    networks:
+      - mall-network
+
+  web-admin:
+    build:
+      context: ./apps/web-admin
+      dockerfile: Dockerfile
+    container_name: mall-admin-panel
+    environment:
+      - VITE_API_URL=http://gateway:8080
+    ports:
+      - "13002:5173"
+    depends_on:
+      - gateway
+    networks:
+      - mall-network
+
+networks:
+  mall-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
