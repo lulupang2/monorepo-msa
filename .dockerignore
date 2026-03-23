@@ -1,0 +1,30 @@
+# OS metadata
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Local env files
+.env
+*.local
+
+# Build artifacts
+.next
+.svelte-kit
+dist
+build
+out
+.turbo
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
